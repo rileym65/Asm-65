@@ -1,0 +1,6 @@
+asm65
+*.asm
+*.inc
+*.lst
+*.o
+*.prg
