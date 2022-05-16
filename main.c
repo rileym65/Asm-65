@@ -170,7 +170,7 @@ word findLabel(char* name, char* err) {
           usedExternal = j;
       return labelValues[i];
       }
-  if (pass == 1) return 0;
+  if (pass == 1) return 0xffff;
   *err = 0xff;
   printf("Error: Label not found: %s\n",name);
   errors++;
@@ -338,6 +338,16 @@ char* evaluate(char* expr, word* ret) {
     if (*expr == '$') {
       value = address;
       expr++;
+      }
+    else if (*expr == '%') {
+      expr++;
+      isHex = 'N';
+      value = 0;
+      while (*expr == '0' || *expr == '1' || *expr == '_') {
+        if (*expr == '0') value <<= 1;
+        if (*expr == '1') value = (value << 1) | 1;
+        expr++;
+        }
       }
     else if ((*expr >= '0' && *expr <= '9') || isHex == 'Y') {
       while ((*expr >= '0' && *expr <= '9') ||
