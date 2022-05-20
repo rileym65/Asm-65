@@ -510,6 +510,12 @@ void parse(char* line) {
   }
 
 void parse2() {
+  if (strcasecmp(opcode,"db") == 0) return;
+  if (strcasecmp(opcode,"byte") == 0) return;
+  if (strcasecmp(opcode,".byte") == 0) return;
+  if (strcasecmp(opcode,"dw") == 0) return;
+  if (strcasecmp(opcode,"word") == 0) return;
+  if (strcasecmp(opcode,".word") == 0) return;
   while (strlen(arg1) > 0 && arg1[strlen(arg1)-1] <= 32) arg1[strlen(arg1)-1] = 0;
   while (strlen(arg2) > 0 && arg2[strlen(arg2)-1] <= 32) arg2[strlen(arg2)-1] = 0;
   if (strlen(arg2) > 0) numArgs = 2;
