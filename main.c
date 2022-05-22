@@ -320,11 +320,11 @@ char* evaluate(char* expr, word* ret) {
       }
     while (*expr == ' ') expr++;
     if (*expr == '<') {
-      ntype = 'H';
+      ntype = 'L';
       expr++;
       }
     if (*expr == '>') {
-      ntype = 'L';
+      ntype = 'H';
       expr++;
       }
     if (*expr == '$' && 
