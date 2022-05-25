@@ -1015,6 +1015,18 @@ int assemblyPass(char* sourceName) {
           if (createListFile != 0) fprintf(listFile,"%s\n",listLine);
           }
       }
+    else {
+      if (fileNumber == 0)
+        sprintf(listLine,"[%05d] ",lineNumber[fileNumber]);
+      else
+        sprintf(listLine,"<%05d> ",lineNumber[fileNumber]);
+      while (strlen(listLine) < 27) strcat(listLine," ");
+      strcat(listLine, sourceLine);
+      if (pass == 2) {
+        if (showList != 0) printf("%s\n",listLine);
+        if (createListFile != 0) fprintf(listFile,"%s\n",listLine);
+        }
+      }
     }
   while (fileNumber > 0) {
     fclose(sourceFile[fileNumber--]);
