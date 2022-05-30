@@ -70,8 +70,8 @@ void initOpcodes() {
   addOpcode("INC",    1,   0x02e, 0xe2, 1);
   addOpcode("INX",    0,       0, 0xe8, 1);
   addOpcode("INY",    0,       0, 0xc8, 1);
-  addOpcode("JMP",    1,   0x284, 0x40, 1);
-  addOpcode("JSR",    1,   0x004, 0x20, 1);
+  addOpcode("JMP",    1,   0x286, 0x40, 1);
+  addOpcode("JSR",    1,   0x006, 0x20, 1);
   addOpcode("LDA",    1,   0x3ef, 0xa1, 1);
   addOpcode("LDX",    1,   0x057, 0xa2, 1);
   addOpcode("LDY",    1,   0x057, 0xa0, 1);
@@ -166,8 +166,9 @@ word findLabel(char* name, char* err) {
   for (i=0; i<numLabels; i++)
     if (strcasecmp(labelNames[i], name) == 0) {
       for (j=0; j<numExternals; j++)
-        if (strcasecmp(externals[j], name) == 0)
+        if (strcasecmp(externals[j], name) == 0) {
           usedExternal = j;
+          }
       return labelValues[i];
       }
   if (pass == 1) return 0xffff;
@@ -299,6 +300,7 @@ char* evaluate(char* expr, word* ret) {
   *ret = 0;
   evalErrors = 0;
   usedExternal = -1;
+  extType = 'W';
   osp = 0;
   nsp = 0;
   flag = 0;
@@ -322,10 +324,12 @@ char* evaluate(char* expr, word* ret) {
     if (*expr == '<') {
       ntype = 'L';
       expr++;
+      extType = 'L';
       }
     if (*expr == '>') {
       ntype = 'H';
       expr++;
+      extType = 'H';
       }
     if (*expr == '$' && 
         ((*(expr+1) >= '0' && *(expr+1) <= '9') ||
@@ -510,6 +514,7 @@ void parse(char* line) {
   }
 
 void parse2() {
+  aext = -1;
   if (strcasecmp(opcode,"db") == 0) return;
   if (strcasecmp(opcode,"byte") == 0) return;
   if (strcasecmp(opcode,".byte") == 0) return;
@@ -535,6 +540,10 @@ void parse2() {
       amode = 0x001;
       opcodeOffset = 0x08;
       evaluate(&(arg1[1]), &arg);
+      if (usedExternal >= 0) {
+        aext = usedExternal;
+        aetype = extType;
+        }
       }
     else if (arg1[0] == '(') {
       amode = 0x200;
@@ -549,13 +558,21 @@ void parse2() {
         errors++;
         }
       else {
-        if (arg < 256) {
+        if (arg < 256 && usedExternal < 0) {
           amode = 0x002;
           opcodeOffset = 0x04;
+          if (usedExternal >= 0) {
+            aext = usedExternal;
+            aetype = extType;
+            }
           }
         else {
           amode = 0x004;
           opcodeOffset = 0x0c;
+          if (usedExternal >= 0) {
+            aext = usedExternal;
+            aetype = extType;
+            }
           }
         }
       }
@@ -572,10 +589,18 @@ void parse2() {
         if (strcasecmp(arg2,"y") == 0) {
           amode = 0x100;
           opcodeOffset = 0x10;
+          if (usedExternal >= 0) {
+            aext = usedExternal;
+            aetype = 'L';
+            }
           }
         else if (strcasecmp(arg2,"x)") == 0) {
           amode = 0x080;
           opcodeOffset = 0x00;
+          if (usedExternal >= 0) {
+            aext = usedExternal;
+            aetype = 'L';
+            }
           }
         else {
           printf("Error: Invalid argument format\n");
@@ -595,15 +620,24 @@ void parse2() {
         if (strcasecmp(arg2,"y") == 0) {
           amode = 0x040;
           opcodeOffset = 0x18;
+          if (usedExternal >= 0) aext = usedExternal;
           }
         else if (strcasecmp(arg2,"x") == 0) {
-          if (arg < 256) {
+          if (arg < 256 && usedExternal < 0) {
             amode = 0x008;
             opcodeOffset = 0x14;
+            if (usedExternal >= 0) {
+              aext = usedExternal;
+              aetype = extType;
+              }
             }
           else {
             amode = 0x020;
             opcodeOffset = 0x1c;
+            if (usedExternal >= 0) {
+              aext = usedExternal;
+              aetype = extType;
+              }
             }
           }
         else {
@@ -682,16 +716,51 @@ void translateInstruction(int o) {
     else output(opcodeBase[o] + opcodeOffset);
     if (opcodeBase[o] == 0x40 && amode == 0x200) amode = 0x004;
     if (opcodeBase[o] == 0x40 && amode == 0x080) amode = 0x004;
+    if (opcodeBase[o] == 0x40 && amode == 0x002) amode = 0x004;
+    if (opcodeBase[o] == 0x20 && amode == 0x002) amode = 0x004;
     switch (amode) {
-      case 0x001: output(arg & 0xff); break;
+      case 0x001: 
+           if (pass == 2 && aext >= 0) {
+             if (aetype == 'H')
+               fprintf(outFile,"/%s %04x\n",externals[aext],address);
+             else 
+               fprintf(outFile,"\\%s %04x\n",externals[aext],address);
+             }
+           output(arg & 0xff);
+           break;
       case 0x002: output(arg & 0xff); break;
-      case 0x004: output(arg & 0xff); output((arg >> 8) & 0xff); break;
+      case 0x004:
+           if (pass == 2 && aext >= 0) {
+             fprintf(outFile,"?%s %04x\n",externals[aext],address);
+             }
+           output(arg & 0xff); output((arg >> 8) & 0xff);
+           break;
       case 0x008: output(arg & 0xff); break;
       case 0x010: output(arg & 0xff); break;
-      case 0x020: output(arg & 0xff); output((arg >> 8) & 0xff); break;
-      case 0x040: output(arg & 0xff); output((arg >> 8) & 0xff); break;
-      case 0x080: output(arg & 0xff); break;
-      case 0x100: output(arg & 0xff); break;
+      case 0x020: 
+           if (pass == 2 && aext >= 0) {
+             fprintf(outFile,"?%s %04x\n",externals[aext],address);
+             }
+           output(arg & 0xff); output((arg >> 8) & 0xff);
+           break;
+      case 0x040:
+           if (pass == 2 && aext >= 0) {
+             fprintf(outFile,"?%s %04x\n",externals[aext],address);
+             }
+           output(arg & 0xff); output((arg >> 8) & 0xff);
+           break;
+      case 0x080:
+           if (pass == 2 && aext >= 0) {
+             fprintf(outFile,"\\%s %04x\n",externals[aext],address);
+             }
+           output(arg & 0xff);
+           break;
+      case 0x100:
+           if (pass == 2 && aext >= 0) {
+             fprintf(outFile,"\\%s %04x\n",externals[aext],address);
+             }
+           output(arg & 0xff);
+           break;
       case 0x200: output(arg & 0xff); break;
       }
     }
